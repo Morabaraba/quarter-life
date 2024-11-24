@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace TwineTweeParser
@@ -15,7 +16,9 @@ namespace TwineTweeParser
             None,
             StoryTitle,
             StoryData,
-            Passage
+            Passage,
+            ScriptTag,
+            DivTag
         }
 
         /// <summary>
@@ -25,6 +28,7 @@ namespace TwineTweeParser
         {
             public string Text { get; set; }
             public string Script { get; set; }
+            public string Div { get; set; }
         }
 
         /// <summary>
@@ -47,6 +51,7 @@ namespace TwineTweeParser
                 string currentPassageName = null;
                 string currentPassageText = "";
                 string currentScript = "";
+                string currentDiv = "";
 
                 foreach (string line in lines)
                 {
@@ -59,15 +64,17 @@ namespace TwineTweeParser
                             passages[currentPassageName] = new PassageData
                             {
                                 Text = currentPassageText.Trim(),
-                                Script = currentScript.Trim()
+                                Script = currentScript.Trim(),
+                                Div = currentDiv.Trim()
                             };
-                            Debug.Log($"Parsed Passage - Name: {currentPassageName}, Content: {currentPassageText.Trim()}, Script: {currentScript.Trim()}");
+                            Debug.Log($"Parsed Passage - Name: {currentPassageName}, Content: {currentPassageText.Trim()}, Script: {currentScript.Trim()}, Div: {currentDiv.Trim()}");
                         }
 
                         int nameEndIndex = line.IndexOf('{');
                         currentPassageName = (nameEndIndex > -1) ? line.Substring(3, nameEndIndex - 3).Trim() : line.Substring(3).Trim();
                         currentPassageText = "";
                         currentScript = "";
+                        currentDiv = "";
                         Debug.Log($"currentPassageName [{currentPassageName}]");
 
                         currentState = currentPassageName switch
@@ -102,20 +109,41 @@ namespace TwineTweeParser
                         case ParsingState.Passage:
                             if (line.Contains("<script"))
                             {
-                                currentScript += line + "\n";
+                                currentState = ParsingState.ScriptTag;
+                                currentScript += CleanScriptTag(line) + "\n";
                             }
-                            else if (line.Contains("</script>"))
+                            else if (line.Contains("<div"))
                             {
-                                currentScript += line + "\n";
-                                currentState = ParsingState.Passage; // Continue collecting passage text after script block
-                            }
-                            else if (currentScript.Length > 0)
-                            {
-                                currentScript += line + "\n"; // Continue collecting script content
+                                currentState = ParsingState.DivTag;
+                                currentDiv += CleanDivTag(line) + "\n";
                             }
                             else
                             {
                                 currentPassageText += line + "\n";
+                            }
+                            break;
+
+                        case ParsingState.ScriptTag:
+                            if (line.Contains("</script>"))
+                            {
+                                currentScript += CleanScriptTag(line) + "\n";
+                                currentState = ParsingState.Passage;
+                            }
+                            else
+                            {
+                                currentScript += line + "\n";
+                            }
+                            break;
+
+                        case ParsingState.DivTag:
+                            if (line.Contains("</div>"))
+                            {
+                                currentDiv += CleanDivTag(line) + "\n";
+                                currentState = ParsingState.Passage;
+                            }
+                            else
+                            {
+                                currentDiv += line + "\n";
                             }
                             break;
 
@@ -131,15 +159,54 @@ namespace TwineTweeParser
                     passages[currentPassageName] = new PassageData
                     {
                         Text = currentPassageText.Trim(),
-                        Script = currentScript.Trim()
+                        Script = currentScript.Trim(),
+                        Div = currentDiv.Trim()
                     };
-                    Debug.Log($"Parsed Passage - Name: {currentPassageName}, Content: {currentPassageText.Trim()}, Script: {currentScript.Trim()}");
+                    Debug.Log($"Parsed Passage - Name: {currentPassageName}, Content: {currentPassageText.Trim()}, Script: {currentScript.Trim()}, Div: {currentDiv.Trim()}");
                 }
             }
             catch (Exception e)
             {
                 Debug.LogError($"Failed to load or parse the Twine file: {e.Message}");
             }
+        }
+
+        /// <summary>
+        /// Extracts choices from the given passage text.
+        /// </summary>
+        /// <param name="text">The passage text to extract choices from.</param>
+        /// <returns>A list of choices extracted from the text.</returns>
+        public List<string> ExtractChoices(string text)
+        {
+            var choiceList = new List<string>();
+            var matches = Regex.Matches(text, @"\[\[(.*?)\]\]");
+            foreach (Match match in matches)
+            {
+                choiceList.Add(match.Groups[1].Value);
+            }
+            return choiceList;
+        }
+
+        /// <summary>
+        /// Cleans a line by removing the <script> or </script> tag and its attributes.
+        /// </summary>
+        /// <param name="line">The line to clean.</param>
+        /// <returns>The cleaned line.</returns>
+        private string CleanScriptTag(string line)
+        {
+            string pattern = @"<script.*?>|</script>";
+            return Regex.Replace(line, pattern, "").Trim();
+        }
+
+        /// <summary>
+        /// Cleans a line by removing the <div> or </div> tag and its attributes.
+        /// </summary>
+        /// <param name="line">The line to clean.</param>
+        /// <returns>The cleaned line.</returns>
+        private string CleanDivTag(string line)
+        {
+            string pattern = @"<div.*?>|</div>";
+            return Regex.Replace(line, pattern, "").Trim();
         }
     }
 }
