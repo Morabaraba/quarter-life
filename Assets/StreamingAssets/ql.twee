@@ -1,0 +1,73 @@
+:: StoryTitle
+ql
+
+:: StoryData
+{
+  "ifid": "F869B56F-A125-4A10-8860-EA750759BDD8",
+  "format": "Harlowe",
+  "format-version": "3.3.8",
+  "start": "computer-blue",
+  "zoom": 1
+}
+
+:: computer-blue {"position":"850,200","size":"100,100"}
+Welcome Planeteer,
+Use E+1,E+2,... to 
+Action something on 
+The System!
+<div class=hidden>
+[[open door]] [[close door]]
+</div>
+
+:: close door {"position":"975,325","size":"100,100"}
+Door closed.
+
+<script type="text/plain">
+PlayerPrefs.SetInt($"doorKeyColor.blue", 0)
+</script>
+:: open door {"position":"850,325","size":"100,100"}
+The door should open soon.
+
+<script type="text/plain">
+PlayerPrefs.SetInt($"doorKeyColor.blue", 1)
+</script>
+
+:: computer-office {"position":"850,200","size":"100,100"}
+Note this will on lock the BOSS!
+<div class=hidden>
+[[open boss]] [[close boss]]
+</div>
+
+:: close boss {"position":"975,325","size":"100,100"}
+Boss door closed.
+
+<script type="text/plain">
+PlayerPrefs.SetInt("doorKeyColor.boss", 0)
+</script>
+:: open boss {"position":"850,325","size":"100,100"}
+Boss door open,
+goodluck!
+
+<script type="text/plain">
+PlayerPrefs.SetInt("doorKeyColor.boss", 1)
+</script>
+
+:: knight {"position":"425,500","size":"100,100"}
+Oh a warrior we have. 
+No need for doors.
+
+<script type="text/plain">
+if (PlayerPrefs.GetString("PlayerType", "") == "") {
+  PlayerPrefs.SetString("PlayerType", "knight");
+}
+</script>
+
+:: wizard {"position":"550,500","size":"100,100"}
+Oh no ludites around here,
+Lets assign you your "role".
+
+<script type="text/plain">
+if (PlayerPrefs.GetString("PlayerType", "") == "") {
+  PlayerPrefs.SetString("PlayerType", "wizard");
+}
+</script>
