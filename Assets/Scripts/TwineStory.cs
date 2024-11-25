@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
@@ -23,22 +24,41 @@ public class TwineStory : MonoBehaviour
     public float detectionRadius = 1.0f; // Radius to check for player proximity
     public string interactiveKey = "e"; // Default interaction key
     public bool resetToStartPassage = true; // Reset to start passage when text is hidden
+    public bool resetToCurrentPassage = false; // Reset to current passage when text is hidden
     public bool useInteractiveKeyWithChoices = true; // Choices to change current passage will only happen if interactive key + choice is pressed down
     public bool addBackChoice = true; // Add a back choice to set current passage to start passage
     public string promptPrefix = "Choices:\n"; // Prefix for choice prompts
     private List<string> choices = new List<string>(); // List to store passage choices
     private TwineTweeParser.TwineTweeParser parser = new TwineTweeParser.TwineTweeParser(); // parser to help with scripts and choices
+    private string startCurrentPassage; // To store the initial current passage
 
     // Cache for text components
     private Text uiText;
     private TextMesh textMesh;
     private TMP_Text tmpText;
-
     void Start()
+    {
+        StartCoroutine(StartLoading());
+    }
+    /// <summary>
+    /// Coroutine to load the map data and continue execution.
+    /// </summary>
+    private IEnumerator StartLoading()
+    {
+        yield return StartCoroutine(parser.LoadFile(filePath));
+
+        // Continue execution after map data has been loaded
+        StartLoaded();
+    }
+
+    void StartLoaded()
     {        
-        parser.ParseFile(filePath, out storyTitle, out startPassage, out passages);
+        parser.ParseFile( out storyTitle, out startPassage, out passages);
         Debug.Log($"Available Passage Keys: [{string.Join(", ", passages.Keys)}]");    
-        currentPassage = startPassage; // Initialize with start passage
+        if (!resetToCurrentPassage) {
+            currentPassage = startPassage; // Initialize with start passage
+        }
+        startCurrentPassage = currentPassage; // Store the initial current passage
 
         // Determine what type of text component is on the textObject
         if (textObject != null)
@@ -112,7 +132,11 @@ public class TwineStory : MonoBehaviour
                 {
                     HideText();
                     isTextDisplayed = false;
-                    if (resetToStartPassage)
+                    if (resetToCurrentPassage)
+                    {
+                        currentPassage = startCurrentPassage;
+                    }
+                    else if (resetToStartPassage)
                     {
                         currentPassage = startPassage;
                     }
@@ -122,7 +146,11 @@ public class TwineStory : MonoBehaviour
                     // Allow re-interaction when within detection radius and key is pressed again
                     HideText();
                     isTextDisplayed = false;
-                    if (resetToStartPassage)
+                    if (resetToCurrentPassage)
+                    {
+                        currentPassage = startCurrentPassage;
+                    }
+                    else if (resetToStartPassage)
                     {
                         currentPassage = startPassage;
                     }
@@ -148,7 +176,15 @@ public class TwineStory : MonoBehaviour
         if (textObject != null && passages.TryGetValue(currentPassage, out TwineTweeParser.TwineTweeParser.PassageData passageData))
         {
             // Process passageText to show choices in blue
-            string processedText = Regex.Replace(passageData.Text,  @"\[\[(.*?)\]\]", match => $"<color=blue>{match.Groups[1].Value}</color>");
+            string processedText = Regex.Replace(passageData.Text,  @"
+
+\[
+
+\[(.*?)\]
+
+\]
+
+", match => $"<color=blue>{match.Groups[1].Value}</color>");
 
             // Extract and build choices
             choices = ExtractChoices(passageData.Text + passageData.Div);
@@ -227,7 +263,7 @@ public class TwineStory : MonoBehaviour
         }
     }
 
-    /// <summary>
+/// <summary>
     /// Hides the text on the appropriate text component.
     /// </summary>
     void HideText()

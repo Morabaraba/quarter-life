@@ -1,5 +1,7 @@
 using System.IO;
+using System.Collections;
 using UnityEngine;
+using UnityEngine.Networking; // Add this namespace for UnityWebRequest
 using DunGenRef;
 
 [ExecuteInEditMode]
@@ -30,31 +32,71 @@ public class DunGenMap : MonoBehaviour
     /// </summary>
     private string[] map;
 
-    /// <summary>
-    /// Called when the script instance is being loaded.
-    /// </summary>
-    void Start()
+    public void Start()
     {
         if (Application.isPlaying)
         {
-            LoadMap();
+            StartLoad();
         }
+    }
+
+    public void StartLoad()
+    {
+        StartCoroutine(StartLoading());
+    }
+    /// <summary>
+    /// Coroutine to load the map data and continue execution.
+    /// </summary>
+    public IEnumerator StartLoading()
+    {  
+        yield return StartCoroutine(LoadMap());
+
+        // Continue execution after map data has been loaded
+        StartLoaded();
+    }
+
+    /// <summary>
+    /// Called when the script instance is being loaded.
+    /// </summary>
+    public void StartLoaded()
+    {
         GenerateMap();
     }
 
     /// <summary>
     /// Loads the map data from the specified file.
     /// </summary>
-    public void LoadMap()
+    public IEnumerator LoadMap()
     {
-        if (File.Exists(mapFile))
+        string filePath = Application.streamingAssetsPath + "/" + mapFile;
+
+        if (filePath.Contains("://") || filePath.Contains(":///"))
         {
-            map = File.ReadAllLines(mapFile);
+            UnityWebRequest www = UnityWebRequest.Get(filePath);
+            yield return www.SendWebRequest();
+
+            if (www.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogError("Map file not found: " + filePath);
+                map = new string[0];
+            }
+            else
+            {
+                string mapData = www.downloadHandler.text;
+                map = mapData.Split(new[] { "\r\n", "\r", "\n" }, System.StringSplitOptions.None);
+            }
         }
         else
         {
-            Debug.LogError("Map file not found: " + mapFile);
-            map = new string[0];
+            if (File.Exists(filePath))
+            {
+                map = File.ReadAllLines(filePath);
+            }
+            else
+            {
+                Debug.LogError("Map file not found: " + filePath);
+                map = new string[0];
+            }
         }
     }
 

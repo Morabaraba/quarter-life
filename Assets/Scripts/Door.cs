@@ -134,7 +134,7 @@ public class Door : MonoBehaviour
     /// <returns>True if the door should open, false otherwise.</returns>
     bool ShouldOpenDoor()
     {
-        return string.IsNullOrEmpty(doorKeyColor) || PlayerPrefs.GetInt($"doorKeyColor.{doorKeyColor}", 1) == 1;
+        return string.IsNullOrEmpty(doorKeyColor) || PlayerPrefs.GetInt($"doorKeyColor.{doorKeyColor}", 0) == 1;
     }
 
     /// <summary>

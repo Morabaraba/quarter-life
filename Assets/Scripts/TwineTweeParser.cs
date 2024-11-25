@@ -1,16 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.IO;
 using System.Text.RegularExpressions;
 using UnityEngine;
+using UnityEngine.Networking; // Add this namespace for UnityWebRequest
 
 namespace TwineTweeParser
 {
+
     /// <summary>
     /// A parser for the Twee format used in Twine stories.
     /// </summary>
     public class TwineTweeParser
     {
+        private string[] lines = new string[0];
         private enum ParsingState
         {
             None,
@@ -30,6 +34,43 @@ namespace TwineTweeParser
             public string Script { get; set; }
             public string Div { get; set; }
         }
+        /// <summary>
+        /// Parses a Twee file and extracts story metadata and passages.
+        /// </summary>
+        /// <param name="fileName">The filename to the Twee file.</param>
+        public IEnumerator LoadFile(string fileName)
+        {
+            string filePath = Application.streamingAssetsPath + "/" + fileName;
+
+            if (filePath.Contains("://") || filePath.Contains(":///"))
+            {
+                UnityWebRequest www = UnityWebRequest.Get(filePath);
+                yield return www.SendWebRequest();
+
+                if (www.result != UnityWebRequest.Result.Success)
+                {
+                    Debug.LogError("TwineTweeParser WWW filePath: [" + filePath + "] not found.");
+                    lines = new string[0];
+                }
+                else
+                {
+                    string linesData = www.downloadHandler.text;
+                    lines = linesData.Split(new[] { "\r\n", "\r", "\n" }, System.StringSplitOptions.None);
+                }
+            }
+            else
+            {
+                if (File.Exists(filePath))
+                {
+                    lines = File.ReadAllLines(filePath);
+                }
+                else
+                {
+                    Debug.LogError("TwineTweeParser FILE filePath: [" + filePath + "] not found.");
+                    lines = new string[0];
+                }
+            }
+        }
 
         /// <summary>
         /// Parses a Twee file and extracts story metadata and passages.
@@ -38,15 +79,13 @@ namespace TwineTweeParser
         /// <param name="storyTitle">Outputs the story title.</param>
         /// <param name="startPassage">Outputs the start passage name.</param>
         /// <param name="passages">Outputs a dictionary of passage names and contents.</param>
-        public void ParseFile(string filePath, out string storyTitle, out string startPassage, out Dictionary<string, PassageData> passages)
+        public void ParseFile(out string storyTitle, out string startPassage, out Dictionary<string, PassageData> passages)
         {
             storyTitle = string.Empty;
             startPassage = string.Empty;
             passages = new Dictionary<string, PassageData>();
-
             try
             {
-                string[] lines = File.ReadAllLines(filePath);
                 ParsingState currentState = ParsingState.None;
                 string currentPassageName = null;
                 string currentPassageText = "";
@@ -186,7 +225,7 @@ namespace TwineTweeParser
             }
             return choiceList;
         }
-
+        
         /// <summary>
         /// Cleans a line by removing the <script> or </script> tag and its attributes.
         /// </summary>

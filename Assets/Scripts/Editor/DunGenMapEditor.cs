@@ -11,8 +11,7 @@ public class DunGenMapEditor : Editor
         DunGenMap script = (DunGenMap)target;
         if (GUILayout.Button("Reload Map"))
         {
-            script.LoadMap();
-            script.GenerateMap();
+            script.StartLoad();
         }
     }
 }
